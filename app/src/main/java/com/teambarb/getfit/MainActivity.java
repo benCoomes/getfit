@@ -41,6 +41,7 @@ package com.teambarb.getfit;
         import java.io.IOException;
         import java.util.ArrayList;
         import java.util.Arrays;
+        import java.util.Comparator;
         import java.util.List;
 
         import pub.devrel.easypermissions.AfterPermissionGranted;
@@ -338,7 +339,7 @@ public class MainActivity extends Activity
         @Override
         protected List<String> doInBackground(Void... params) {
             try {
-                return getDataFromApi();
+                return eventsToStrings(insertWorkoutTimes(getDataFromApi()));
             } catch (Exception e) {
                 mLastError = e;
                 cancel(true);
@@ -351,10 +352,9 @@ public class MainActivity extends Activity
          * @return List of Strings describing returned events.
          * @throws IOException
          */
-        private List<String> getDataFromApi() throws IOException {
+        private List<Event> getDataFromApi() throws IOException {
             // List the next 10 events from the primary calendar.
             DateTime now = new DateTime(System.currentTimeMillis());
-            List<String> eventStrings = new ArrayList<String>();
             Events events = mService.events().list("primary")
                     .setMaxResults(10)
                     .setTimeMin(now)
@@ -362,8 +362,61 @@ public class MainActivity extends Activity
                     .setSingleEvents(true)
                     .execute();
             List<Event> items = events.getItems();
+            return items;
 
-            for (Event event : items) {
+        }
+
+        private List<Event> insertWorkoutTimes(List<Event> events){
+            //TODO implement insertion logic
+            List<Event> insertList = new ArrayList<Event>();
+            long mintime = 1 * 3600000; // hours * milliseconds/hour
+
+            // pairwise compare subsequent events to determine length of time between them
+            // if greater than mintime, add new workout suggestion to insertList
+            Event preEvent, postEvent;
+            long timediff = 0;
+            for(int i = 0; i < events.size() - 1; i++){
+                preEvent = events.get(i);
+                postEvent = events.get(i + 1);
+
+                //doesnt make sense to consider events without start or end times
+                if(preEvent.getEnd().getDateTime() == null || postEvent.getStart().getDateTime() == null){
+                    continue;
+                }
+
+                timediff = postEvent.getStart().getDateTime().getValue()
+                        - preEvent.getEnd().getDateTime().getValue();
+
+                if(timediff >= mintime){
+                    Event workout = new Event();
+                    workout.setSummary("Go workout!");
+                    workout.setStart(preEvent.getEnd().clone());
+                    workout.setEnd(postEvent.getStart().clone());
+                    insertList.add(workout);
+                }
+            }
+
+            // place all events in insertlist into events, then return events
+            Comparator<Event> comparator = new EventTimeComparator();
+            for(Event workout : insertList){
+                int i = 0;
+                while(i < events.size()){
+                    if(comparator.compare(events.get(i), workout) < 0){
+                        i++;
+                    }
+                    else{
+                        break;
+                    }
+                }
+                events.add(i, workout);
+            }
+
+            return events;
+        }
+
+        private List<String> eventsToStrings(List<Event> events){
+            List<String> eventStrings = new ArrayList<String>();
+            for (Event event : events) {
                 DateTime start = event.getStart().getDateTime();
                 if (start == null) {
                     // All-day events don't have start times, so just use
