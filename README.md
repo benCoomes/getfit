@@ -20,4 +20,11 @@ Following these configuation steps, you should be able to use the
 application. Otherwise, you will get an error explaining that the app
 has not been authenticated with the API. 
 
+When using the application for the first time, you will need to sign on. 
+We created sample google account for use with testing this app: 
+Username: getfittester@gmail.com
+Password: getfit1234
+
+
+
 

@@ -39,9 +39,12 @@ package com.teambarb.getfit;
         import android.widget.TextView;
 
         import java.io.IOException;
+        import java.text.DateFormat;
+        import java.text.SimpleDateFormat;
         import java.util.ArrayList;
         import java.util.Arrays;
         import java.util.Comparator;
+        import java.util.Date;
         import java.util.List;
 
         import pub.devrel.easypermissions.AfterPermissionGranted;
@@ -367,7 +370,6 @@ public class MainActivity extends Activity
         }
 
         private List<Event> insertWorkoutTimes(List<Event> events){
-            //TODO implement insertion logic
             List<Event> insertList = new ArrayList<Event>();
             long mintime = 1 * 3600000; // hours * milliseconds/hour
 
@@ -423,8 +425,11 @@ public class MainActivity extends Activity
                     // the start date.
                     start = event.getStart().getDate();
                 }
+                Date startDate = new Date(start.getValue());
+                DateFormat formatter = new SimpleDateFormat("MM/dd/yyyy h:mm a");
+                String formattedStart = formatter.format(startDate);
                 eventStrings.add(
-                        String.format("%s (%s)", event.getSummary(), start));
+                        String.format("%s (%s)", event.getSummary(), formattedStart));
             }
             return eventStrings;
         }
