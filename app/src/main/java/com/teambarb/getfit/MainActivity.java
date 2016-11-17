@@ -19,12 +19,14 @@ package com.teambarb.getfit;
 
         import android.Manifest;
         import android.accounts.AccountManager;
+        import android.app.ActionBar;
         import android.app.Activity;
         import android.app.Dialog;
         import android.app.ProgressDialog;
         import android.content.Context;
         import android.content.Intent;
         import android.content.SharedPreferences;
+        import android.graphics.Color;
         import android.net.ConnectivityManager;
         import android.net.NetworkInfo;
         import android.os.AsyncTask;
@@ -36,6 +38,7 @@ package com.teambarb.getfit;
         import android.view.ViewGroup;
         import android.widget.Button;
         import android.widget.LinearLayout;
+        import android.widget.ScrollView;
         import android.widget.TextView;
 
         import java.io.IOException;
@@ -56,6 +59,8 @@ public class MainActivity extends Activity
     private TextView mOutputText;
     private Button mCallApiButton;
     ProgressDialog mProgress;
+    ScrollView mScrollView;
+    LinearLayout mScrollLayout;
 
     static final int REQUEST_ACCOUNT_PICKER = 1000;
     static final int REQUEST_AUTHORIZATION = 1001;
@@ -106,6 +111,14 @@ public class MainActivity extends Activity
         mOutputText.setText(
                 "Click the \'" + BUTTON_TEXT +"\' button to test the API.");
         activityLayout.addView(mOutputText);
+
+        mScrollView = new ScrollView(this);
+        mScrollView.setLayoutParams(lp);
+        mScrollLayout = new LinearLayout(this);
+        mScrollLayout.setLayoutParams(lp);
+        mScrollLayout.setOrientation(LinearLayout.VERTICAL);
+        mScrollView.addView(mScrollLayout);
+        activityLayout.addView(mScrollView);
 
         mProgress = new ProgressDialog(this);
         mProgress.setMessage("Calling Google Calendar API ...");
@@ -438,6 +451,7 @@ public class MainActivity extends Activity
         @Override
         protected void onPreExecute() {
             mOutputText.setText("");
+            mScrollLayout.removeAllViews();
             mProgress.show();
         }
 
@@ -447,8 +461,35 @@ public class MainActivity extends Activity
             if (output == null || output.size() == 0) {
                 mOutputText.setText("No results returned.");
             } else {
-                output.add(0, "Data retrieved using the Google Calendar API:");
-                mOutputText.setText(TextUtils.join("\n", output));
+                mOutputText.setText("Click on a workout event to add it to you calendar");
+                int buttonId = 0;
+                ViewGroup.MarginLayoutParams blp = new ViewGroup.MarginLayoutParams(
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT);
+                //the line below seems to have no effect - intention is to put space between the buttons
+                blp.setMargins(32,32,32,128);
+                String[] colors = {"#4286f4",
+                        "#42cbf4",
+                        "#42f4aa",
+                        "#98f442",
+                        "#f4c242",
+                        "#f47d42",
+                        "#f44242",
+                        "#ad42f4"};
+                for(String s : output){
+                    //get application context correct?
+                    Button btn = new Button(getApplicationContext());
+                    btn.setLayoutParams(blp);
+                    btn.setPadding(16,0,16,0);
+                    btn.setText(s);
+                    btn.setId(buttonId);
+                    //TODO: set workout buttons to specific color that indicates they are not in the calendar.
+                    //TODO: use event colors for other event buttons
+                    btn.setBackgroundColor(Color.parseColor(colors[buttonId%colors.length]));
+                    mScrollLayout.addView(btn);
+                    //TODO: add on-click method to workout buttons that will add workout to calendar
+                    buttonId++;
+                }
             }
         }
 

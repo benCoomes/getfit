@@ -7,7 +7,7 @@ provide your SHA1 fingerprint to the API. To do this,
 follow steps 1 and 2 on the following tutorial: 
 https://developers.google.com/google-apps/calendar/quickstart/android
 
-When choosing the package name (2.g), enter com.teambarb.getfit 
+When choosing the package name (step 2.g), enter com.teambarb.getfit 
 instead of com.example.quickstart. 
 
 If you are using windows, enter the following in the commandline instead
