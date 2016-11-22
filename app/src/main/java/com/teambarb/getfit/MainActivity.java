@@ -22,6 +22,7 @@ package com.teambarb.getfit;
         import android.app.ActionBar;
         import android.app.Activity;
         import android.app.Dialog;
+        import android.app.DialogFragment;
         import android.app.ProgressDialog;
         import android.content.Context;
         import android.content.Intent;
@@ -34,6 +35,7 @@ package com.teambarb.getfit;
         import android.support.annotation.NonNull;
         import android.text.TextUtils;
         import android.text.method.ScrollingMovementMethod;
+        import android.util.Log;
         import android.view.View;
         import android.view.ViewGroup;
         import android.widget.Button;
@@ -69,7 +71,7 @@ public class MainActivity extends Activity
 
     private static final String BUTTON_TEXT = "Call Google Calendar API";
     private static final String PREF_ACCOUNT_NAME = "accountName";
-    private static final String[] SCOPES = { CalendarScopes.CALENDAR_READONLY };
+    private static final String[] SCOPES = { CalendarScopes.CALENDAR};
 
     /**
      * Create the main activity.
@@ -335,9 +337,11 @@ public class MainActivity extends Activity
      * An asynchronous task that handles the Google Calendar API call.
      * Placing the API calls in their own task ensures the UI stays responsive.
      */
-    private class MakeRequestTask extends AsyncTask<Void, Void, List<String>> {
+    private class MakeRequestTask extends AsyncTask<Void, Void, List<Event>> {
         private com.google.api.services.calendar.Calendar mService = null;
         private Exception mLastError = null;
+        private List<Event> mEvents = null;
+
 
         public MakeRequestTask(GoogleAccountCredential credential) {
             HttpTransport transport = AndroidHttp.newCompatibleTransport();
@@ -353,9 +357,9 @@ public class MainActivity extends Activity
          * @param params no parameters needed for this task.
          */
         @Override
-        protected List<String> doInBackground(Void... params) {
+        protected List<Event> doInBackground(Void... params) {
             try {
-                return eventsToStrings(insertWorkoutTimes(getDataFromApi()));
+                return insertWorkoutTimes(getDataFromApi());
             } catch (Exception e) {
                 mLastError = e;
                 cancel(true);
@@ -407,6 +411,7 @@ public class MainActivity extends Activity
                     workout.setSummary("Go workout!");
                     workout.setStart(preEvent.getEnd().clone());
                     workout.setEnd(postEvent.getStart().clone());
+                    workout.setKind("unadded_workout_kind");
                     insertList.add(workout);
                 }
             }
@@ -432,19 +437,23 @@ public class MainActivity extends Activity
         private List<String> eventsToStrings(List<Event> events){
             List<String> eventStrings = new ArrayList<String>();
             for (Event event : events) {
-                DateTime start = event.getStart().getDateTime();
-                if (start == null) {
-                    // All-day events don't have start times, so just use
-                    // the start date.
-                    start = event.getStart().getDate();
-                }
-                Date startDate = new Date(start.getValue());
-                DateFormat formatter = new SimpleDateFormat("MM/dd/yyyy h:mm a");
-                String formattedStart = formatter.format(startDate);
-                eventStrings.add(
-                        String.format("%s (%s)", event.getSummary(), formattedStart));
+                eventStrings.add(eventToString(event));
             }
             return eventStrings;
+        }
+
+        private String eventToString(Event event){
+            DateTime start = event.getStart().getDateTime();
+            if (start == null) {
+                // All-day events don't have start times, so just use
+                // the start date.
+                start = event.getStart().getDate();
+            }
+            Date startDate = new Date(start.getValue());
+            DateFormat formatter = new SimpleDateFormat("MM/dd/yyyy h:mm a");
+            String formattedStart = formatter.format(startDate);
+            String.format("%s (%s)", event.getSummary(), formattedStart);
+            return event.getSummary() + "(" + formattedStart +")";
         }
 
 
@@ -456,40 +465,54 @@ public class MainActivity extends Activity
         }
 
         @Override
-        protected void onPostExecute(List<String> output) {
+        protected void onPostExecute(List<Event> output) {
             mProgress.hide();
             if (output == null || output.size() == 0) {
                 mOutputText.setText("No results returned.");
             } else {
                 mOutputText.setText("Click on a workout event to add it to you calendar");
                 int buttonId = 0;
-                ViewGroup.MarginLayoutParams blp = new ViewGroup.MarginLayoutParams(
+                LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(
                         ViewGroup.LayoutParams.WRAP_CONTENT,
                         ViewGroup.LayoutParams.WRAP_CONTENT);
                 //the line below seems to have no effect - intention is to put space between the buttons
-                blp.setMargins(32,32,32,128);
-                String[] colors = {"#4286f4",
-                        "#42cbf4",
-                        "#42f4aa",
-                        "#98f442",
-                        "#f4c242",
-                        "#f47d42",
-                        "#f44242",
-                        "#ad42f4"};
-                for(String s : output){
+                blp.setMargins(0,20,0,0);
+                for (Event e : output) {
                     //get application context correct?
                     Button btn = new Button(getApplicationContext());
                     btn.setLayoutParams(blp);
-                    btn.setPadding(16,0,16,0);
-                    btn.setText(s);
+                    btn.setPadding(16,16, 16, 16);
+                    btn.setText(eventToString(e));
                     btn.setId(buttonId);
-                    //TODO: set workout buttons to specific color that indicates they are not in the calendar.
-                    //TODO: use event colors for other event buttons
-                    btn.setBackgroundColor(Color.parseColor(colors[buttonId%colors.length]));
+                    if (e.getKind().equalsIgnoreCase("unadded_workout_kind")) {
+                        btn.setOnClickListener(new View.OnClickListener() {
+                            @Override
+                            public void onClick(View v) {
+                                //todo: pass the actual event
+                                postEventToApi(mCredential, new Event());
+                            }
+                        });
+                        btn.setBackgroundColor(Color.GRAY);
+                    } else {
+                        btn.setBackgroundColor(Color.BLUE);
+                    }
                     mScrollLayout.addView(btn);
-                    //TODO: add on-click method to workout buttons that will add workout to calendar
                     buttonId++;
                 }
+            }
+    }
+
+        private void postEventToApi(GoogleAccountCredential credential, Event event){
+            String CalendarId = "primary";
+            try {
+                //TODO: implement this method
+                //event = mService.events().insert(CalendarId, event).execute();
+                Log.d("tag", "Added event to calendar");
+                DialogFragment alertFragment = new EventAddedDialog();
+                alertFragment.show(getFragmentManager(),"eventAddedAlert");
+
+            } catch(Exception e){
+                e.printStackTrace();
             }
         }
 
@@ -513,5 +536,7 @@ public class MainActivity extends Activity
                 mOutputText.setText("Request cancelled.");
             }
         }
+
     }
+
 }
